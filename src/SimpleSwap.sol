@@ -18,13 +18,17 @@ contract SimpleSwap {
     function swapWETHForDAI(uint256 amountIn) external returns (uint256 amountOut) {
 
         // Transfer the specified amount of WETH9 to this contract.
+        /// @dev The tokens should be approved by sender before transfer
         TransferHelper.safeTransferFrom(WETH9, msg.sender, address(this), amountIn);
-        // Approve the router to spend WETH9.
+        
+        // Approve the router to spend WETH9 received by the sender.
         TransferHelper.safeApprove(WETH9, address(swapRouter), amountIn);
+        
         // Note: To use this example, you should explicitly set slippage limits, omitting for simplicity
         uint256 minOut = /* Calculate min output */ 0;
         uint160 priceLimit = /* Calculate price limit */ 0;
-    // Create the params that will be used to execute the swap
+        
+        // Create the params that will be used to execute the swap
         ISwapRouter.ExactInputSingleParams memory params =
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: WETH9,
@@ -36,6 +40,7 @@ contract SimpleSwap {
                 amountOutMinimum: minOut,
                 sqrtPriceLimitX96: priceLimit
             });
+
         // The call to `exactInputSingle` executes the swap.
         amountOut = swapRouter.exactInputSingle(params);
     }
