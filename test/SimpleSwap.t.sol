@@ -14,12 +14,13 @@ contract SimpleSwapTest is Test {
     SimpleSwap simpleSwap;
     IWETH9 public constant iWETH9 = IWETH9(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public constant UNISWAP_V3_SWAPROUTER_ON_ETHEREUM = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public constant ZKFI_POOL_ON_ETHEREUM = 0x730d407a8aE9193983C77A91f6d5ccbf4a40fAc0;
     address public user = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
     function setUp() external {
         // Factory -> Router -> SimpleSwap -> Pool
         ISwapRouter iSwapRouter = ISwapRouter(UNISWAP_V3_SWAPROUTER_ON_ETHEREUM);
-        simpleSwap = new SimpleSwap(iSwapRouter);
+        simpleSwap = new SimpleSwap(iSwapRouter, ZKFI_POOL_ON_ETHEREUM);
 
         // getting WETH9
         vm.prank(user);
