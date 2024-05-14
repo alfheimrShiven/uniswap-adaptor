@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity =0.7.6;
+pragma solidity 0.8.23;
 pragma abicoder v2;
 
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {TransferHelper} from "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import {IConvertProxy} from "@zkFi/interfaces/IConvertProxy.sol";
-import {Asset, AssetType} from "@zkFi/libraries/DataTypes.sol";
+import {IConvertProxy} from "@zkFi/src/interfaces/IConvertProxy.sol";
+import {Asset, AssetType} from "@zkFi/src/libraries/DataTypes.sol";
 
 contract SimpleSwap is IConvertProxy {
     ISwapRouter public immutable swapRouter;
@@ -30,7 +30,11 @@ contract SimpleSwap is IConvertProxy {
         payable
         returns (uint24[] memory outAssetIds, uint256[] memory outValues)
     {
+        // getting asset details
         (bool success, bytes memory inAssetRes) = ZKFI_POOL.call(abi.encodeWithSignature("getAsset(uint24)", inAssetIds[0]));
+        if(!success) {
+            revert('Failled call to zkFi');
+        }
         Asset memory inAsset = abi.decode(inAssetRes, (Asset));
         uint256 inValue = inValues[0];
 
@@ -40,6 +44,9 @@ contract SimpleSwap is IConvertProxy {
         );
 
          (bool status, bytes memory outAssetRes) = ZKFI_POOL.call(abi.encodeWithSignature("getAsset(uint24)", outAssetId));
+         if(!status) {
+            revert('Failled call to zkFi');
+        }
         Asset memory outAsset = abi.decode(outAssetRes, (Asset));
         // Executing swap using UniswapV3
         uint256 tokenOutAmount = swapExactInputSingle({
