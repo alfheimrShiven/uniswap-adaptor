@@ -48,14 +48,19 @@ contract SimpleSwap is IConvertProxy {
             revert('Failled call to zkFi');
         }
         Asset memory outAsset = abi.decode(outAssetRes, (Asset));
+       
         // Executing swap using UniswapV3
         uint256 tokenOutAmount = swapExactInputSingle({
             tokenIn: inAsset.assetAddress,
             tokenInAmt: inValue,
             tokenOut: outAsset.assetAddress,
             minOut: minOut,
-            receipient: beneficiary // ZTransaction beneficiary
+            receipient: beneficiary // Convertor.sol
         });
+
+        // initialising out arrays
+        outAssetIds = new uint24[](1);
+        outValues = new uint256[](1);
 
         outAssetIds[0] = outAssetId;
         outValues[0] = tokenOutAmount;
@@ -73,8 +78,8 @@ contract SimpleSwap is IConvertProxy {
         /// @dev The tokens should be approved by sender before transfer
         TransferHelper.safeTransferFrom(
             tokenIn,
-            msg.sender,
-            address(this),
+            msg.sender, // pool
+            address(this), // Convertor.sol
             tokenInAmt
         );
 
@@ -90,7 +95,7 @@ contract SimpleSwap is IConvertProxy {
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
                 fee: feeTier,
-                recipient: receipient, // zkFi Pool
+                recipient: receipient, // Convertor.sol
                 deadline: block.timestamp,
                 amountIn: tokenInAmt,
                 amountOutMinimum: minOut,
