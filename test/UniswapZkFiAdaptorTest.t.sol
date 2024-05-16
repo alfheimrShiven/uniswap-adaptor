@@ -6,15 +6,14 @@ import {Test, console} from "forge-std/Test.sol";
 import {PoolFixture} from "./fixtures/PoolFixture.sol";
 import {TransactionRequest} from "@zkFi/test/helpers/TransactionRequest.sol";
 import {ZTransaction} from "@zkFi/src/libraries/ZTransaction.sol";
-import {ZkFi} from "@zkFi/test/helpers/ZkFi.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import {SimpleSwap} from "src/SimpleSwap.sol";
+import {UniswapZkFiAdaptor} from "src/UniswapZkFiAdaptor.sol";
 import {IWETH9} from "src/IWETH9.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IConvertor} from "@zkFi/src/interfaces/IConvertor.sol";
 
-contract SimpleSwapTest is Test, PoolFixture {
-    SimpleSwap simpleSwap;
+contract UniswapZkFiAdaptorTest is Test, PoolFixture {
+    UniswapZkFiAdaptor uniswapZkFiAdaptor;
     IWETH9 public constant iWETH9 =
         IWETH9(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public constant UNISWAP_V3_SWAPROUTER_ON_ETHEREUM =
@@ -25,7 +24,7 @@ contract SimpleSwapTest is Test, PoolFixture {
     uint256[] inValues;
 
     // modifier zkFiSetup() {
-    //     pool.setProxy(address(simpleSwap), true);
+    //     pool.setProxy(address(uniswapZkFiAdaptor), true);
     //     vm.startPrank(user);
     //     _mockDeposit(); // deposits funds from PoolFixture to pool using ZTrnx
     //     vm.stopPrank();
@@ -34,11 +33,8 @@ contract SimpleSwapTest is Test, PoolFixture {
 
     function setUp() external {
         PoolFixture._initFixture();
-        // Factory -> Router -> SimpleSwap -> Pool
-        ISwapRouter iSwapRouter = ISwapRouter(
-            UNISWAP_V3_SWAPROUTER_ON_ETHEREUM
-        );
-        simpleSwap = new SimpleSwap(iSwapRouter, address(pool));
+        // Factory -> Router -> UniswapZkFiAdaptor -> Pool
+        uniswapZkFiAdaptor = new UniswapZkFiAdaptor(UNISWAP_V3_SWAPROUTER_ON_ETHEREUM, address(pool));
 
         // getting WETH9
         vm.prank(user);
@@ -46,30 +42,30 @@ contract SimpleSwapTest is Test, PoolFixture {
         iWETH9.deposit{value: INITIAL_SUPPLY}();
     }
 
-    function testSimpleSwapDeploy() external view {
-        assert(address(simpleSwap) != address(0));
+    function testUniswapZkFiAdaptorDeploy() external view {
+        assert(address(uniswapZkFiAdaptor) != address(0));
     }
 
-    function testDirectSwapWithUniswap() external {
-        vm.startPrank(user);
-        iWETH9.approve(address(simpleSwap), SWAP_AMT); // approving WETH9 to SimpleSwap contract before swap
-        uint256 amtOut = simpleSwap.swapWETHForDAI(SWAP_AMT);
-        vm.stopPrank();
-
-        console.log("Amt Out:", amtOut);
-        assert(amtOut > 0);
-    }
-
-    function testSwapThroughZkFi() external /* zkFiSetup */ {
+    /// @dev For test setup simplicity, directly calling Convertor::convert(..) from Pool instead of calling Pool::transact(ztx) Ref Line 100 - 104
+    // InAssets will move user -> pool -> convertor -> Adaptor -> uniswap
+    // OutAssets will move from uniswap -> convertor (beneficiery/receipient) -> pool (assetManager)
+    function testSwapThroughZkFiIntegrationTest() external /* zkFiSetup */ {
         uint256 poolDAIBalBeforeConvert = IERC20(DAI).balanceOf(address(pool));
         uint24 wETHAssetId = _getAssetId(WETH9);
         uint24 DAIAssetId = _getAssetId(DAI);
         uint256 convertValue = SWAP_AMT;
+        uint256 minOutAmt = 0;
+        uint256 deadlineFromNow = 60;
 
-        // preparing payload to SimpleSwap
+        // preparing payload to UniswapZkFiAdaptor
         inAssetIds.push(wETHAssetId);
         inValues.push(convertValue);
-        bytes memory payload = abi.encode(DAIAssetId, 0, address(convertor));
+        bytes memory payload = abi.encode(
+            DAIAssetId,
+            address(convertor),
+            minOutAmt,
+            deadlineFromNow
+        );
 
         vm.startPrank(user);
         iWETH9.approve(address(pool), INITIAL_SUPPLY);
@@ -78,15 +74,13 @@ contract SimpleSwapTest is Test, PoolFixture {
 
         vm.startPrank(address(pool));
         iWETH9.approve(address(convertor), convertValue);
-        /// @dev For test setup simplicity, directly calling Convertor::convert(..) from Pool instead of calling Pool::transact(ztx) Ref Line 100 - 104
-        // InAssets will move user -> pool -> convertor -> uniswap
-        // OutAssets will move from uniswap -> convertor (beneficiery/receipient) -> pool (assetManager)
+
         (, uint256[] memory outValues) = IConvertor(address(convertor))
             .convert({
-                target: address(simpleSwap),
-                inAssetIds: inAssetIds,
+                target: address(uniswapZkFiAdaptor),
+                assetIds: inAssetIds,
                 inValues: inValues,
-                targetPayload: payload
+                payload: payload
             });
         vm.stopPrank();
 
@@ -106,5 +100,22 @@ contract SimpleSwapTest is Test, PoolFixture {
         // Asserts
         uint256 poolDAIBalPostConvert = IERC20(DAI).balanceOf(address(pool));
         assert(poolDAIBalPostConvert > poolDAIBalBeforeConvert);
+    }
+
+    function testSlippageProtection() external {
+        uint256 minOutExpectedByUser = 6000e18; // only 5791e18 DAI will be received in return of SWAP_AMT wETH. Hence keeping minOutExpectedByUser > 5791e18
+
+        vm.startPrank(user);
+        iWETH9.approve(address(uniswapZkFiAdaptor), SWAP_AMT);
+        vm.expectRevert("Too little received");
+        uniswapZkFiAdaptor.swapExactInputSingle({
+            tokenIn: WETH9,
+            tokenInAmt: SWAP_AMT,
+            tokenOut: DAI,
+            minOut: minOutExpectedByUser,
+            receipient: user,
+            deadlineFromNow: 30
+        });
+        vm.stopPrank();
     }
 }

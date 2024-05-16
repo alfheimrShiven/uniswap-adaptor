@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {BaseFixture} from "@zkFi/test/fixtures/BaseFixture.sol";
 import {Pool} from "@zkFi/src/core/Pool.sol";
 import {Verifier22} from "@zkFi/src/verifiers/Verifier22.sol";
 import {VerifierInfo} from "@zkFi/src/libraries/DataTypes.sol";
@@ -11,7 +10,7 @@ import {Asset, AssetType} from "@zkFi/src/libraries/DataTypes.sol";
 import {ZTransaction} from "@zkFi/src/libraries/ZTransaction.sol";
 import {IWETH9} from "src/IWETH9.sol";
 
-contract PoolFixture is BaseFixture {
+contract PoolFixture {
     Verifier public verifier;
     Convertor public convertor;
     Pool public pool;
@@ -26,7 +25,7 @@ contract PoolFixture is BaseFixture {
     Asset public assetDAI;
     Asset public assetWETH9;
 
-    function _initFixture() internal virtual override {
+    function _initFixture() internal {
         // BaseFixture._initFixture();
         Verifier22 v22 = new Verifier22();
         uint256[] memory ids = new uint256[](1);

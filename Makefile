@@ -30,22 +30,8 @@ build :; forge build
 # Test commands
 test :; forge test --rpc-url $(ANVIL_RPC_URL)
 
-coverage :; forge coverage --report debug > coverage-report.txt
-
-snapshot :; forge snapshot
-
-format :; forge fmt
-
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 NETWORK_ARGS := --rpc-url $(ANVIL_RPC_URL) --private-key $(ANVIL_PRIVATE_KEY) --broadcast
 
-ifeq ($(findstring --network sepolia,$(ARGS)),--network sepolia)
-	NETWORK_ARGS := --rpc-url $(SEPOLIA_RPC_URL) --private-key $(SEPOLIA_PRIVATE_KEY) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
-endif
-
-ifeq ($(findstring --network op_sepolia,$(ARGS)),--network op_sepolia)
-	NETWORK_ARGS := --rpc-url $(OP_SEPOLIA_RPC_URL) --private-key $(OP_SEPOLIA_PRIVATE_KEY) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
-endif
-
 deploy:
-	@forge script script/DeployDSC.s.sol:DeployDSC $(NETWORK_ARGS)
+	@forge script script/DeployUniswapZkFiAdaptor.s.sol:DeployUniswapZkFiAdaptor $(NETWORK_ARGS)

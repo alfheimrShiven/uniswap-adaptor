@@ -1,17 +1,5 @@
-## Foundry
-
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
-
-Foundry consists of:
-
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
+## Uniswap <> zkFi adaptor 🔌
+The adaptor implements `zkFi::IConvertProxy` interface to allow users to route their Uniswap swaps using zkFi's privacy layer.
 
 ## Usage
 
@@ -21,46 +9,16 @@ https://book.getfoundry.sh/
 $ forge build
 ```
 
-### Test
+> You will also have to upgrade the Uniswap's `ISwapRouter` and `TransferHelper` contract versions to `0.8.23` to avoid solc compiler version incompatibility issues before building the project.
 
+### Test on Anvil mainnet fork
 ```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
+$ anvil --fork-url $(CHAIN_NODE_URL) --fork-block-number 19846421 --fork-chain-id 1 --chain-id 1
+$ make test
 ```
 
 ### Deploy
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
 ```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+make deploy
 ```
